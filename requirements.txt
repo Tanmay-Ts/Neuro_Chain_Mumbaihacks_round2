@@ -1,0 +1,9 @@
+openai>=1.55.0
+streamlit
+sqlalchemy
+python-dotenv
+requests
+pandas
+praw
+google-api-python-client
+schedule
