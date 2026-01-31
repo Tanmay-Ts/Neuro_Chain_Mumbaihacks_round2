@@ -1,5 +1,14 @@
+# =========================================================
+# Incident lifecycle constants (GLOBAL)
+# =========================================================
+
+INCIDENT_STATUS_OPEN = "open"
+INCIDENT_STATUS_MONITORING = "monitoring"
+INCIDENT_STATUS_RESPONDED = "responded"
+INCIDENT_STATUS_CLOSED = "closed"
+
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey,Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import json
@@ -146,3 +155,58 @@ def get_all_history(db):
 
 def get_debunk_by_post_id(db, post_id):
     return db.query(Debunk).filter(Debunk.post_id == post_id).first()
+
+# =========================================================
+# INCIDENT MODELS (NeuroChain v2)
+# =========================================================
+
+class Incident(Base):
+    __tablename__ = "incidents"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Basic identification
+    title = Column(String(512), nullable=False)
+    source = Column(String(64), nullable=False)   # news / reddit / youtube / web
+    risk_level = Column(String(16), nullable=False)
+    risk_score = Column(Float, nullable=True)
+
+    # Lifecycle
+    status = Column(String(16), default=INCIDENT_STATUS_OPEN)
+
+    opened_at = Column(DateTime, default=datetime.utcnow)
+    alerted_at = Column(DateTime, nullable=True)
+    response_drafted_at = Column(DateTime, nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+
+    # AI response
+    response_draft = Column(Text, nullable=True)
+
+    # ---- lifecycle helpers ----
+
+    def mark_alerted(self):
+        if not self.alerted_at:
+            self.alerted_at = datetime.utcnow()
+
+    def mark_responded(self, response_text=None):
+        if not self.response_drafted_at:
+            self.response_drafted_at = datetime.utcnow()
+        if response_text:
+            self.response_draft = response_text
+        self.status = INCIDENT_STATUS_RESPONDED
+
+    def close_incident(self):
+        self.status = INCIDENT_STATUS_CLOSED
+        self.closed_at = datetime.utcnow()
+
+
+class IncidentEvent(Base):
+    __tablename__ = "incident_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    incident_id = Column(Integer, nullable=False)
+
+    event_type = Column(String(64), nullable=False)
+    description = Column(Text, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)

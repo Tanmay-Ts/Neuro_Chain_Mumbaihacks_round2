@@ -46,6 +46,10 @@ def run_full_analysis(post_id, post_text, brand):
             }
             
         analysis['claim'] = claim 
+        # --- NOISE FILTER (CRITICAL FIX) ---
+        if "no clear factual claim" in analysis.get("claim", "").lower():
+            return  # drop noise silently
+
         
         db = next(get_db())
         debunk = save_debunk(db, post_id, analysis)
